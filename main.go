@@ -34,6 +34,13 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/app/", apiConfig.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
 
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(fmt.Sprintf("Hits: %v", apiConfig.fileserverHits)))
+	})
+
+	mux.Handle("/reset", apiConfig.resetFileserverHits(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})))
+
 	corsMux := middlewareCors(mux)
 	srv := &http.Server{
 		Addr:    ":" + port,

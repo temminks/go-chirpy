@@ -1,14 +1,39 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 )
 
+type apiConfig struct {
+	fileserverHits int
+}
+
+func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cfg.fileserverHits++
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (cfg *apiConfig) resetFileserverHits(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cfg.fileserverHits = 0
+		log.Default().Println("fileserverHits reset")
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	const port = "8080"
+	var apiConfig apiConfig
 
 	mux := http.NewServeMux()
+	mux.Handle("/app/", apiConfig.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
+
 	corsMux := middlewareCors(mux)
 	srv := &http.Server{
 		Addr:    ":" + port,

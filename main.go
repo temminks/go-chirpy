@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type apiConfig struct {
@@ -23,30 +25,36 @@ func (cfg *apiConfig) resetFileserverHits(next http.Handler) http.Handler {
 		cfg.fileserverHits = 0
 		log.Default().Println("fileserverHits reset")
 
-		next.ServeHTTP(w, r)
+		w.Write([]byte("Hits reset to 0"))
 	})
+}
+
+func handlerReadiness(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(http.StatusText(http.StatusOK)))
 }
 
 func main() {
 	const port = "8080"
 	var apiConfig apiConfig
+	router := chi.NewRouter()
 
-	mux := http.NewServeMux()
-	mux.Handle("/app/", apiConfig.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
+	fsHandler := apiConfig.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir("."))))
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte("OK"))
-	})
+	router.Handle("/app/", fsHandler)
+	router.Handle("/app/*", fsHandler)
 
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/healthz", handlerReadiness)
+
+	router.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("Hits: %v", apiConfig.fileserverHits)))
 	})
 
-	mux.Handle("/reset", apiConfig.resetFileserverHits(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	})))
+	router.Get("/reset", apiConfig.resetFileserverHits(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})).ServeHTTP)
 
-	corsMux := middlewareCors(mux)
+	corsMux := middlewareCors(router)
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: corsMux,

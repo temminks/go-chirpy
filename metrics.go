@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -24,7 +25,20 @@ func (cfg *apiConfig) resetFileserverHits(w http.ResponseWriter, r *http.Request
 }
 
 func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+
+	template, err := os.ReadFile("admin/index.html")
+	if err != nil {
+		log.Default().Printf("Failed to open file: %s", err)
+
+		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte("Error accessing the Admin Portal."))
+		return
+	}
+
+	templateStr := string(template)
+	updatedTemplate := fmt.Sprintf(templateStr, cfg.fileserverHits)
+
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits)))
+	w.Write([]byte(updatedTemplate))
 }

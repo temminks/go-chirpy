@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -11,29 +10,6 @@ import (
 
 type apiConfig struct {
 	fileserverHits int
-}
-
-func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cfg.fileserverHits++
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (cfg *apiConfig) resetFileserverHits(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cfg.fileserverHits = 0
-		log.Default().Println("fileserverHits reset")
-
-		w.Write([]byte("Hits reset to 0"))
-	})
-}
-
-func handlerReadiness(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(http.StatusText(http.StatusOK)))
 }
 
 func main() {
@@ -47,14 +23,12 @@ func main() {
 	router.Handle("/app", fsHandler)
 	router.Handle("/app/*", fsHandler)
 
-	router.Get("/healthz", handlerReadiness)
+	apiRouter := chi.NewRouter()
+	apiRouter.Get("/healthz", handlerReadiness)
+	apiRouter.Get("/metrics", apiConfig.handlerMetrics)
+	apiRouter.Get("/reset", apiConfig.resetFileserverHits)
 
-	router.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf("Hits: %v", apiConfig.fileserverHits)))
-	})
-
-	router.Get("/reset", apiConfig.resetFileserverHits(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	})).ServeHTTP)
+	router.Mount("/api/", apiRouter)
 
 	corsMux := middlewareCors(router)
 	srv := &http.Server{

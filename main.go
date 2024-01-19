@@ -40,9 +40,9 @@ func main() {
 	var apiConfig apiConfig
 	router := chi.NewRouter()
 
-	fsHandler := apiConfig.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir("."))))
+	fsHandler := apiConfig.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("."))))
 
-	router.Handle("/app/", fsHandler)
+	router.Handle("/app", fsHandler)
 	router.Handle("/app/*", fsHandler)
 
 	router.Get("/healthz", handlerReadiness)

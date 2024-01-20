@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type JsonErrorType struct {
@@ -11,7 +12,7 @@ type JsonErrorType struct {
 }
 
 type StatusValidType struct {
-	Valid bool `json:"valid"`
+	CleanedBody string `json:"cleaned_body"`
 }
 
 func createError(text string) (jsonError []byte, err error) {
@@ -40,6 +41,19 @@ func responseWithError(w http.ResponseWriter, code int, msg string) {
 	w.Write(errorResponse)
 }
 
+func cleanBody(body string) string {
+	badWords := map[string]struct{}{"kerfuffle": {}, "sharbert": {}, "fornax": {}}
+	parts := strings.Split(body, " ")
+	for i, part := range parts {
+		_, ok := badWords[strings.ToLower(part)]
+		if ok {
+			parts[i] = "****"
+		}
+	}
+
+	return strings.Join(parts, " ")
+}
+
 func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 	type chirp struct {
 		Body string `json:"body"`
@@ -54,20 +68,22 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(params.Body) == 0 {
+	cleanedBody := cleanBody(params.Body)
+
+	if len(cleanedBody) == 0 {
 		responseWithError(w, http.StatusBadRequest, "Chirp is empty")
 		return
 	}
 
-	if len(params.Body) > 140 {
+	if len(cleanedBody) > 140 {
 		responseWithError(w, http.StatusBadRequest, "Chirp is too long")
 		return
 	}
 
-	valid := StatusValidType{
-		Valid: true,
+	cleanedResponse := StatusValidType{
+		CleanedBody: cleanedBody,
 	}
-	validResponseBody, err := json.Marshal(valid)
+	validResponseBody, err := json.Marshal(cleanedResponse)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

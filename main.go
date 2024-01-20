@@ -26,10 +26,12 @@ func main() {
 	apiRouter := chi.NewRouter()
 	apiRouter.Get("/healthz", handlerReadiness)
 	apiRouter.Get("/reset", apiConfig.resetFileserverHits)
+	apiRouter.Post("/validate_chirp", handlerValidateChirp)
 
 	adminRouter := chi.NewRouter()
 	adminRouter.Get("/metrics", apiConfig.handlerMetrics)
 
+	// mount routers
 	router.Mount("/api/", apiRouter)
 	router.Mount("/admin", adminRouter)
 

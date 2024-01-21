@@ -27,14 +27,6 @@ When method post
 Then status 400
 And match response contains { "error": "Chirp is empty" }
 
-Scenario: Chrip Contains Bad Word
-Given path '/api/validate_chirp'
-And request {"body": "This is a kerfuffle opinion I need to share with the world" }
-
-When method post
-Then status 200
-And match response contains { "cleaned_body": "This is a **** opinion I need to share with the world" }
-
 Scenario: Chrip Contains Bad Words but one with Punctuation
 Given path '/api/validate_chirp'
 And request {"body": "Sharbert! This is a kerfuffle opinion I need to share with the world" }
